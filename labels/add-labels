@@ -1,0 +1,33 @@
+#!/bin/bash
+
+export DOCKER_HOST="ssh://ubuntu@10.0.1.115"
+
+# Check if at least two arguments are provided
+if [ "$#" -lt 2 ]; then
+    echo "Usage: $0 <node_id> <label1=value1> [<label2=value2> ...]"
+    exit 1
+fi
+
+# The first argument is the node ID
+NODE_ID=$1
+shift # Remove the node ID from the arguments list
+
+# Loop through the remaining arguments, each assumed to be a label
+for LABEL in "$@"; do
+    # Add the label to the specified node
+    echo "Adding label $LABEL to node $NODE_ID..."
+    docker node update --label-add "$LABEL" "$NODE_ID"
+
+    # Check if the command succeeded
+    if [ $? -ne 0 ]; then
+        echo "Failed to add label $LABEL to node $NODE_ID"
+        exit 1
+    fi
+done
+
+echo "All labels added successfully to node $NODE_ID."
+
+docker node inspect $NODE_ID --format '{{ .Spec.Labels }}'
+
+unset $DOCKER_HOST
+
