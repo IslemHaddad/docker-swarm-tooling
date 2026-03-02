@@ -20,14 +20,12 @@ It is intended for DevOps engineers and system administrators who want a lightwe
 ✅ Production-friendly workflows
 
 📁 Project Structure
-docker-swarm-tooling/
-│
-├── labels/
-│   └── add-labels.sh      # Script for labeling swarm nodes
-│
-├── scripts/              # Additional automation scripts (future)
-├── configs/              # Configuration files (future)
-└── README.md
+`docker-swarm-tooling/`
+
+- `labels/`
+  - `add-labels`      Script for labeling swarm nodes
+  - `README.md`       Usage notes for node labeling
+- `README.md`
 
 ⚙️ Requirements
 
@@ -45,5 +43,7 @@ Bash shell (Linux / macOS recommended)
 
 Clone the repository:
 
+```bash
 git clone https://github.com/your-username/docker-swarm-tooling.git
-cd docker-swarm-tooling# docker-swarm-tooling
+cd docker-swarm-tooling
+```

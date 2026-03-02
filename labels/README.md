@@ -22,10 +22,14 @@ Improving cluster management
 
 ⚙️ Configuration
 
-Before using the script, update the Docker host address:
+By default, the script targets:
 
-export DOCKER_HOST="ssh://ubuntu@10.0.1.115"
+`ssh://ubuntu@10.0.1.115`
 
+You can override this with either:
+
+- `DOCKER_HOST` environment variable
+- `--docker-host` option
 
 Replace:
 
@@ -36,38 +40,21 @@ ubuntu → with your SSH user
 Make sure SSH access is properly configured.
 
 ▶️ Usage
-./add-labels.sh <node_id> <label1=value1> [<label2=value2> ...]
+`./add-labels [--docker-host ssh://user@manager-ip] [--dry-run] <node_id> <label1=value1> [<label2=value2> ...]`
 
 Example:
-./add-labels.sh node-123 role=database zone=oran env=prod
+`./add-labels node-123 role=database zone=oran env=prod`
 
+Dry-run example:
+`./add-labels --dry-run --docker-host ssh://ubuntu@10.0.1.50 node-123 role=database`
 
-This will apply the following labels to the node:
+🔍 What’s Improved
 
-role=database
-
-zone=oran
-
-env=prod
-
-🔍 How It Works
-
-Sets the DOCKER_HOST variable to connect to the remote Swarm manager.
-
-Reads the first argument as the node ID.
-
-Processes all remaining arguments as labels.
-
-Applies each label using:
-
-docker node update --label-add
-
-
-Stops execution if any label fails.
-
-Displays the final list of labels.
-
-Unsets the DOCKER_HOST variable after execution.
+- Validates labels are in `key=value` format
+- Supports `--dry-run` for safe previews
+- Supports `--docker-host` for per-command target selection
+- Uses safer shell settings (`set -euo pipefail`)
+- Automatically cleans up exported `DOCKER_HOST`
 
 ⚠️ Important Notes
 
@@ -77,8 +64,6 @@ Docker installed
 
 SSH access to the Swarm manager
 
-Always verify and update DOCKER_HOST before running.
-
 Run the script with executable permissions:
 
-chmod +x add-labels.sh
+`chmod +x add-labels`

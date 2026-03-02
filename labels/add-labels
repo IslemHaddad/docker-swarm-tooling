@@ -1,33 +1,106 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-export DOCKER_HOST="ssh://ubuntu@10.0.1.115"
+DEFAULT_DOCKER_HOST="ssh://ubuntu@10.0.1.115"
+DOCKER_HOST_VALUE="${DOCKER_HOST:-$DEFAULT_DOCKER_HOST}"
+DRY_RUN=false
 
-# Check if at least two arguments are provided
-if [ "$#" -lt 2 ]; then
-    echo "Usage: $0 <node_id> <label1=value1> [<label2=value2> ...]"
+usage() {
+  cat <<USAGE
+Usage: $0 [--docker-host ssh://user@manager-ip] [--dry-run] <node_id> <label1=value1> [<label2=value2> ...]
+
+Options:
+  --docker-host   Docker host to target (defaults to DOCKER_HOST env or $DEFAULT_DOCKER_HOST)
+  --dry-run       Print commands without applying changes
+  -h, --help      Show this help message
+USAGE
+}
+
+require_cmd() {
+  if ! command -v "$1" >/dev/null 2>&1; then
+    echo "Error: required command '$1' not found in PATH." >&2
     exit 1
-fi
+  fi
+}
 
-# The first argument is the node ID
-NODE_ID=$1
-shift # Remove the node ID from the arguments list
+validate_label() {
+  local label="$1"
+  if [[ "$label" != *=* ]]; then
+    echo "Error: invalid label '$label'. Labels must be in key=value format." >&2
+    exit 1
+  fi
 
-# Loop through the remaining arguments, each assumed to be a label
-for LABEL in "$@"; do
-    # Add the label to the specified node
-    echo "Adding label $LABEL to node $NODE_ID..."
-    docker node update --label-add "$LABEL" "$NODE_ID"
+  local key="${label%%=*}"
+  if [[ -z "$key" ]]; then
+    echo "Error: invalid label '$label'. Label key cannot be empty." >&2
+    exit 1
+  fi
+}
 
-    # Check if the command succeeded
-    if [ $? -ne 0 ]; then
-        echo "Failed to add label $LABEL to node $NODE_ID"
-        exit 1
-    fi
+run_cmd() {
+  if [[ "$DRY_RUN" == true ]]; then
+    printf '[dry-run] %q ' "$@"
+    printf '\n'
+  else
+    "$@"
+  fi
+}
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --docker-host)
+      [[ $# -ge 2 ]] || { echo "Error: --docker-host requires a value." >&2; usage; exit 1; }
+      DOCKER_HOST_VALUE="$2"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    -* )
+      echo "Error: unknown option '$1'." >&2
+      usage
+      exit 1
+      ;;
+    *)
+      break
+      ;;
+  esac
 done
 
-echo "All labels added successfully to node $NODE_ID."
+if [[ $# -lt 2 ]]; then
+  echo "Error: missing required arguments." >&2
+  usage
+  exit 1
+fi
 
-docker node inspect $NODE_ID --format '{{ .Spec.Labels }}'
+require_cmd docker
 
-unset $DOCKER_HOST
+NODE_ID="$1"
+shift
 
+for label in "$@"; do
+  validate_label "$label"
+done
+
+export DOCKER_HOST="$DOCKER_HOST_VALUE"
+trap 'unset DOCKER_HOST' EXIT
+
+echo "Using Docker host: $DOCKER_HOST"
+echo "Target node: $NODE_ID"
+
+for label in "$@"; do
+  echo "Adding label '$label' to node '$NODE_ID'..."
+  run_cmd docker node update --label-add "$label" "$NODE_ID"
+done
+
+echo "Label update completed for node '$NODE_ID'."
+run_cmd docker node inspect "$NODE_ID" --format '{{ .Spec.Labels }}'
